@@ -23,12 +23,12 @@ youtube_service = build(service_name, service_ver, developerKey=api_key, http=No
 
 def get_playlists_of_specific_channel(channel_id):
     # statistics for my youtube channel
-    request = youtube_service.channels().list(
-        part='statistics',
-        forUsername='disooqi'
-    )
-    print(request.execute())
-    print()
+    # request = youtube_service.channels().list(
+    #     part='statistics',
+    #     forUsername='disooqi'
+    # )
+    # print(request.execute())
+    # print()
     # My channel ID UCtREr67WnhCuBIYuTMQca6A
     # Calculate the duration of videos in a specific playlist
     playlists_req = youtube_service.playlists().list(
@@ -51,7 +51,7 @@ def get_videos_of_specific_playlist(playlist_id):
 
     while True:
         playlistItem_req = youtube_service.playlistItems().list(part='contentDetails', playlistId=playlist_id,
-                                                                maxResults=5, pageToken=next_page_token)
+                                                                maxResults=50, pageToken=next_page_token)
         playlistItems_response = playlistItem_req.execute()
         for item in playlistItems_response['items']:
             videoId = item['contentDetails']['videoId']
@@ -64,22 +64,40 @@ def get_videos_of_specific_playlist(playlist_id):
 
 
 def get_duration_of_video_list(video_ids):
-    video_req = youtube_service.videos().list(part='contentDetails', id=','.join(video_ids))
+    def chunks(lst, n):
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+
     td = datetime.timedelta()
-    for video in video_req.execute()['items']:
-        duration = video['contentDetails']['duration']
-        m = re.match(r'PT((?P<hrs>\d+)H)?((?P<mins>\d+)M)?((?P<secs>\d+)S)?', duration)
-        td += datetime.timedelta(hours=float(m.group('hrs')) if m.group('hrs') else 0,
-                                  minutes=float(m.group('mins')) if m.group('mins') else 0,
-                                  seconds=float(m.group('secs')) if m.group('secs') else 0)
+    for fifty_video_ids in chunks(video_ids, 50):
+        video_req = youtube_service.videos().list(part='contentDetails', id=','.join(fifty_video_ids))
+        videos_response = video_req.execute()
+        for video in videos_response['items']:
+            duration = video['contentDetails']['duration']
+            m = re.match(r'PT((?P<hrs>\d+)H)?((?P<mins>\d+)M)?((?P<secs>\d+)S)?', duration)
+            td += datetime.timedelta(hours=float(m.group('hrs')) if m.group('hrs') else 0,
+                                      minutes=float(m.group('mins')) if m.group('mins') else 0,
+                                      seconds=float(m.group('secs')) if m.group('secs') else 0)
     else:
         return td
 
 
+def get_the_most_popular_video_in_specific_playlist(playlist_id):
+    pass
+
+
 if __name__ == '__main__':
-    playlist_ids = get_playlists_of_specific_channel(channel_id='UCtREr67WnhCuBIYuTMQca6A')
+    my_channel_id ='UCtREr67WnhCuBIYuTMQca6A'
+    channel_id = 'UC98CzaYuFNAA_gOINFB0e4Q'
+    playlist_ids = get_playlists_of_specific_channel(channel_id=channel_id)
+    playlist_ids = ['PL8uoeex94UhHFRew8gzfFJHIpRFWyY4YW']
+
     for playlist in playlist_ids:
+        # get_the_most_popular_video_in_specific_playlist(playlist)
         videos_ids = get_videos_of_specific_playlist(playlist_id=playlist)
+        print(len(videos_ids))
         playlist_duration = get_duration_of_video_list(videos_ids)
         print(f"Playlist '{playlist}' has total duration of", playlist_duration)
         print()
+
