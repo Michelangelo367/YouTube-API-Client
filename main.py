@@ -11,7 +11,9 @@ __created__ = "2020-10-02"
 
 import re
 import datetime
+from operator import itemgetter
 from googleapiclient.discovery import build
+from pprint import pprint
 
 api_key = 'AIzaSyCz175-8M4WQKEmBLow55UkEVr6Qvr9kmI'
 
@@ -77,10 +79,35 @@ def get_duration_of_video_list(video_ids):
             duration = video['contentDetails']['duration']
             m = re.match(r'PT((?P<hrs>\d+)H)?((?P<mins>\d+)M)?((?P<secs>\d+)S)?', duration)
             td += datetime.timedelta(hours=float(m.group('hrs')) if m.group('hrs') else 0,
-                                      minutes=float(m.group('mins')) if m.group('mins') else 0,
-                                      seconds=float(m.group('secs')) if m.group('secs') else 0)
+                                     minutes=float(m.group('mins')) if m.group('mins') else 0,
+                                     seconds=float(m.group('secs')) if m.group('secs') else 0)
     else:
         return td
+
+
+def get_statistics_of_video_list(video_ids):
+    def chunks(lst, n):
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+
+    td = datetime.timedelta()
+    video_lst = list()
+    for fifty_video_ids in chunks(video_ids, 50):
+        video_req = youtube_service.videos().list(part='statistics', id=','.join(fifty_video_ids))
+        videos_response = video_req.execute()
+        for video in videos_response['items']:
+            stats = video['statistics']
+            stats['url'] = f"https://www.youtube.com/watch?v={video['id']}"
+            stats['viewCount'] = int(stats['viewCount'])
+            stats['likeCount'] = int(stats['likeCount'])
+            stats['dislikeCount'] = int(stats['dislikeCount'])
+            video_lst.append(stats)
+            # print(f"https://www.youtube.com/watch?v={video['id']}", stats)
+    else:
+        # {'viewCount': 'int', 'likeCount': 'int', 'dislikeCount': 'int', 'favoriteCount': 'int', 'commentCount': 'int'}
+        video_lst.sort(key=itemgetter('viewCount'), reverse=True)
+        return video_lst
 
 
 def get_the_most_popular_video_in_specific_playlist(playlist_id):
@@ -96,8 +123,10 @@ if __name__ == '__main__':
     for playlist in playlist_ids:
         # get_the_most_popular_video_in_specific_playlist(playlist)
         videos_ids = get_videos_of_specific_playlist(playlist_id=playlist)
-        print(len(videos_ids))
-        playlist_duration = get_duration_of_video_list(videos_ids)
-        print(f"Playlist '{playlist}' has total duration of", playlist_duration)
-        print()
+        # playlist_duration = get_duration_of_video_list(videos_ids)
+        # print(f"Playlist '{playlist}' has total duration of", playlist_duration)
+        lst = get_statistics_of_video_list(videos_ids)
+        print(lst)
+        print(len(lst))
+
 
